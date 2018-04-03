@@ -11,9 +11,12 @@ int player_count = 0;
 pthread_mutex_t mutexcount;
 int MYPORT = 4321;
 
-int grille_joueur1[10][10];
-int grille_joueur2[10][10];
-
+int grille_joueur1_placement[10][10];
+int grille_joueur2_placement[10][10];
+int grille_joueur1_game[10][10];
+int grille_joueur2_game[10][10];
+int turn = 0;
+int prev_turn=1;
 
 void error(const char *msg)
 {
@@ -21,7 +24,58 @@ void error(const char *msg)
     pthread_exit(NULL);
 }
 
-void draw_grid(int grid[10][10]){
+void write_client_data(int sockfd, int tab[10][10])
+{
+    int n = write(sockfd, tab, 100*sizeof(int));
+    if (n < 0)
+        error("Erreur");
+}
+void draw_grid_game(int grid[10][10]) {
+	char data[10][10][30];
+	for (int i = 0; i < 10; i++) {
+		for (int j = 0; j < 10; j++) {
+			char str[30];
+			if (grid[i][j] == 0) {
+				strcpy(str, " ");
+				strcpy(data[i][j], str);
+			}
+			else if (grid[i][j] == 1) {
+				strcpy(str, "\033[42mO\033[0m");
+				strcpy(data[i][j], str);
+			}
+			else if (grid[i][j] == 2) {
+				strcpy(str, "\033[41mX\033[0m");
+				strcpy(data[i][j], str);
+			}
+		}
+	}
+
+	// Now str contains the integer as characters
+	printf("    A | B | C | D | E | F | G | H | I | J | \n");
+	printf("   -------------------------------------------\n");
+	printf("0 | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | \n", data[0][0], data[0][1], data[0][2], data[0][3], data[0][4], data[0][5], data[0][6], data[0][7], data[0][8], data[0][9]);
+	printf("   -------------------------------------------\n");
+	printf("1 | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | \n", data[1][0], data[1][1], data[1][2], data[1][3], data[1][4], data[1][5], data[1][6], data[1][7], data[1][8], data[1][9]);
+	printf("   -------------------------------------------\n");
+	printf("2 | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | \n", data[2][0], data[2][1], data[2][2], data[2][3], data[2][4], data[2][5], data[2][6], data[2][7], data[2][8], data[2][9]);
+	printf("   -------------------------------------------\n");
+	printf("3 | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | \n", data[3][0], data[3][1], data[3][2], data[3][3], data[3][4], data[3][5], data[3][6], data[3][7], data[3][8], data[3][9]);
+	printf("   -------------------------------------------\n");
+	printf("4 | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | \n", data[4][0], data[4][1], data[4][2], data[4][3], data[4][4], data[4][5], data[4][6], data[4][7], data[4][8], data[4][9]);
+	printf("   -------------------------------------------\n");
+	printf("5 | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | \n", data[5][0], data[5][1], data[5][2], data[5][3], data[5][4], data[5][5], data[5][6], data[5][7], data[5][8], data[5][9]);
+	printf("   -------------------------------------------\n");
+	printf("6 | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | \n", data[6][0], data[6][1], data[6][2], data[6][3], data[6][4], data[6][5], data[6][6], data[6][7], data[6][8], data[6][9]);
+	printf("   -------------------------------------------\n");
+	printf("7 | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | \n", data[7][0], data[7][1], data[7][2], data[7][3], data[7][4], data[7][5], data[7][6], data[7][7], data[7][8], data[7][9]);
+	printf("   -------------------------------------------\n");
+	printf("8 | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | \n", data[8][0], data[8][1], data[8][2], data[8][3], data[8][4], data[8][5], data[8][6], data[8][7], data[8][8], data[8][9]);
+	printf("   -------------------------------------------\n");
+	printf("9 | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | \n", data[9][0], data[9][1], data[9][2], data[9][3], data[9][4], data[9][5], data[9][6], data[9][7], data[9][8], data[9][9]);
+
+}
+
+void draw_grid_placement(int grid[10][10]){
   char data[10][10][30];
   for(int i=0;i<10;i++){
   for(int j=0;j<10;j++){
@@ -77,9 +131,8 @@ void draw_grid(int grid[10][10]){
 
      if (n < 0 || n != 3) /* Not what we were expecting. Server got killed or the other client disconnected. */
          error("ERROR reading message from server socket.");
-
-
  }
+
 /* Reads an int from a client socket. */
 void recv_grid(int src[10][10], int cli_sockfd,int player)
 {
@@ -91,11 +144,24 @@ void recv_grid(int src[10][10], int cli_sockfd,int player)
     }*/
     memcpy(src, msg, 100*sizeof(int));
     printf("------------------GRILLE DU JOUEUR %i------------------------\n",player);
-    draw_grid(src);
+    draw_grid_placement(src);
 }
 
-void recv_square(int sockfd,char data[2]){
-  int n=read(sockfd,data,2);
+void recv_grid_game(int src[10][10], int cli_sockfd,int player)
+{
+    int msg[10][10];
+    int n = read(cli_sockfd, msg, 100*sizeof(int));
+    /*for(int i=0;i<10;i++){
+      for(int j=0;j<10;j++)
+        printf("(%i, %i) = %i \n",i,j,msg[i][j]);
+    }*/
+    memcpy(src, msg, 100*sizeof(int));
+}
+
+void recv_square(int sockfd,int data[2]){
+  int tmp[2];
+  int n=read(sockfd,tmp,2*sizeof(int));
+  memcpy(data, tmp, 2*sizeof(int));
 }
 /*
  * Socket Write Functions
@@ -199,27 +265,64 @@ void get_clients(int lis_sockfd, int * cli_sockfd)
         if (num_conn == 0) {
             /* Send "HLD" to first client to let the user know the server is waiting on a second client. */
             write_client_msg(cli_sockfd[0],"HLD");
-
-
         }
         num_conn++;
     }
 }
-void get_player_square(int cli_sockfd, char data[2])
-{
-    /* Tell player to make a move. */
-    write_client_msg(cli_sockfd, "TRN");
-    /* Get players move. */
-    char tmp[2];
-    recv_square(cli_sockfd,tmp);
-    strcpy(data,tmp);
+
+
+
+void get_update(int sockfd,int player,int coup[2]){
+  if(player==1){
+    if(grille_joueur2_placement[coup[0]][coup[1]]!=0){
+      grille_joueur1_game[coup[0]][coup[1]]=1;
+      printf("Le joueur 1 a touché l'adversaire\n");
+    }
+    else{
+      grille_joueur1_game[coup[0]][coup[1]]=2;
+      printf("Le joueur 1 n'a pas touché l'adversaire\n");
+    }
+    write_client_data(sockfd,grille_joueur1_game);
+  }else{
+    if(grille_joueur1_placement[coup[0]][coup[1]]!=0){
+      grille_joueur2_game[coup[0]][coup[1]]=1;
+      printf("Le joueur 2 a touché l'adversaire\n");
+    }
+    else{
+      grille_joueur2_game[coup[0]][coup[1]]=2;
+      printf("Le joueur 2 n'a pas touché l'adversaire\n");
+    }
+    write_client_data(sockfd,grille_joueur2_game);
+  }
+
 }
+
+
+void play(int * cli_sockfd, int player,int data[2])
+{
+  int tmp[2];
+    if(player == 1){
+      write_client_msg(cli_sockfd[1], "TRN");
+      write_client_msg(cli_sockfd[0], "NTR");
+      recv_square(cli_sockfd[1],tmp);
+      get_update(cli_sockfd[1],2,tmp);
+      memcpy(data, tmp, 2*sizeof(int));
+    }else{
+      write_client_msg(cli_sockfd[0], "TRN");
+      write_client_msg(cli_sockfd[1], "NTR");
+      recv_square(cli_sockfd[0],tmp);
+      get_update(cli_sockfd[0],1,tmp);
+      memcpy(data, tmp, 2*sizeof(int));
+    }
+}
+
 int check_square(char * data){
   int nbr=data[0]-'0';
   if(nbr>=0 && nbr<=9 && data[1]>='A' && data[1]<='J')
     return 1;
   return 0;
 }
+
 void *run_game(void *thread_data)
 {
     int *cli_sockfd = (int*)thread_data; /* Client sockets. */
@@ -227,33 +330,27 @@ void *run_game(void *thread_data)
     /* Send the start message. */
 
     char msg[4];
-    printf("Remplissage des grilles..\n");
+    printf("Remplissage des grilles...\n");
     write_clients_msg(cli_sockfd, "SRT");
 
     write_client_msg(cli_sockfd[0], "FIG");
     write_client_msg(cli_sockfd[1], "WFG");
-    recv_grid(grille_joueur1,cli_sockfd[0],1);
+    recv_grid(grille_joueur1_placement,cli_sockfd[0],1);
 
     printf("La grille du joueur 1 a été remplie. .\n");
 
     write_client_msg(cli_sockfd[1], "FIG");
     write_client_msg(cli_sockfd[0], "WFG");
-    recv_grid(grille_joueur2,cli_sockfd[1],2);
+    recv_grid(grille_joueur2_placement,cli_sockfd[1],2);
 
     printf("Les grilles sont remplies. Le jeu commence... \n");
     //printf("Case grille 1 : %i\n",grille_joueur1[0][0]);
     write_clients_msg(cli_sockfd, "STP");
-    int prev_turn=1;
     int gameOver=0;
-    int turn = 0;
-    char square[2];
     while(gameOver==0){
+    int square[2];
       printf("Au tour du joueur %i \n",turn+1);
-      write_client_msg(cli_sockfd[prev_turn], "NTR");
-      get_player_square(cli_sockfd[turn],square);
-      for(int i=0;i<strlen(square);i++)
-        printf("square %i : %c :\n",i,square[i]);
-      printf("Player played position %s\n",square);
+      play(cli_sockfd, prev_turn,square);
       prev_turn=turn;
       turn = (turn + 1) % 2;
       gameOver=0;
@@ -262,13 +359,21 @@ void *run_game(void *thread_data)
 
 int main(int argc, char *argv[])
 {
+
     /* Make sure a port was specified. */
     if (argc < 2) {
         printf("ERROR, no port provided\n");
         exit(1);
     }
+
     int lis_sockfd = setup_listener(MYPORT); /* Listener socket. */
     pthread_mutex_init(&mutexcount, NULL);
+  for(int i=0;i<10;i++){
+    for(int j=0;j<0;j++){
+      grille_joueur1_game[i][j]=0;
+      grille_joueur2_game[i][j]=0;
+    }
+  }
     while (1) {
         if (player_count <= 252) { /* Only launch a new game if we have room. Otherwise, just spin. */
             int *cli_sockfd = (int*)malloc(2*sizeof(int)); /* Client sockets */
