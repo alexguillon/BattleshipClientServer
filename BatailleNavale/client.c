@@ -194,9 +194,9 @@ void take_turn(int sockfd)
   recv_grid(grid,sockfd);
   draw_grid_game(grid);
   if(grid[square[0]][square[1]]==1)
-    printf("\nBravo ! Vous avez touché l'adversaire !\n");
+    	printf("\n\033[42mBravo ! Vous avez touché l'adversaire !\033[0m\n");
   else
-    printf("\nCe coup n'a rien donné !\n");
+   		printf("\n\033[41mCe coup n'a rien donné !\033[0m\n");
 }
 
 void fill_data(int sockfd) {
@@ -521,16 +521,31 @@ int main(int argc, char *argv[])
               printf("Votre adversaire remplit sa grille.\n");
           }
           else if (!strcmp(msg, "STP")) { /* Move was invalid. Note that a "TRN" message will always follow an "INV" message, so we will end up at the above case in the next iteration. */
-              printf("\n LE JEU COMMENCE ! \n");
+              printf("\nLE JEU COMMENCE ! \n");
           }
           else if (!strcmp(msg, "NTR")) { /* Move was invalid. Note that a "TRN" message will always follow an "INV" message, so we will end up at the above case in the next iteration. */
               printf("\n Votre adversaire est en train de jouer. \n");
           }
+          else if (!strcmp(msg, "HBT")) { /* Move was invalid. Note that a "TRN" message will always follow an "INV" message, so we will end up at the above case in the next iteration. */
+             printf("\033[41mVotre adversaire a touché votre flotte ! Reprenez vous moussaillon !\033[0m \n");
+          }
+          else if (!strcmp(msg, "HNT")) { /* Move was invalid. Note that a "TRN" message will always follow an "INV" message, so we will end up at the above case in the next iteration. */
+             printf("\033[42mVotre adversaire a loupé sa cible ! Restons concentré !\033[0m \n");
+          }
           else if (!strcmp(msg, "TRN")) { /* Move was invalid. Note that a "TRN" message will always follow an "INV" message, so we will end up at the above case in the next iteration. */
-              printf("\n A votre tour ! \n");
-              take_turn(sockfd);
+             printf("\n\033[44mA votre tour !\033[0m \n");
+             take_turn(sockfd);
+          }
+          else if (!strcmp(msg, "WIN")) { /* Move was invalid. Note that a "TRN" message will always follow an "INV" message, so we will end up at the above case in the next iteration. */
+              printf("\n\033[42mBRAVO SOLDAT ! VOUS AVEZ GAGNE !\033[0m \n");
+              break;
+          }
+          else if (!strcmp(msg, "LOS")) { /* Move was invalid. Note that a "TRN" message will always follow an "INV" message, so we will end up at the above case in the next iteration. */
+              printf("\n\033[41mVous avez perdu camarade... Mais un soldat ne s'avoue jamais vaincu !\033[0m \n");
+              break;
           }
         }
+      printf("Fin de la partie \n");
       close(sockfd);
       return 0;
 }

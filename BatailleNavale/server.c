@@ -24,6 +24,30 @@ void error(const char *msg)
     pthread_exit(NULL);
 }
 
+int is_Game_Over(){
+  int loop=2;
+  int win=-1;
+  for(int player=1;player<=loop;player++){
+  for(int i=0;i<10 && win==-1;i++){
+    for(int j=0;j<10 && win==-1;j++){
+      if(player==1){
+      if(grille_joueur1_placement[i][j]!=0 && (grille_joueur2_game[i][j]==0 || grille_joueur2_game[i][j]==2)){
+        win=0;
+      }
+    }else {
+      if(grille_joueur2_placement[i][j]!=0 && (grille_joueur1_game[i][j]==0 || grille_joueur1_game[i][j]==2)){
+        win=0;
+    }
+    }
+  }
+}
+  if(win==-1)
+    return player;
+  else
+    win=-1;
+}
+return 0;
+}
 void write_client_data(int sockfd, int tab[10][10])
 {
     int n = write(sockfd, tab, 100*sizeof(int));
@@ -272,48 +296,62 @@ void get_clients(int lis_sockfd, int * cli_sockfd)
 
 
 
-void get_update(int sockfd,int player,int coup[2]){
+int get_update(int * cli_sockfd, int sockfd,int player,int coup[2]){
   if(player==1){
     if(grille_joueur2_placement[coup[0]][coup[1]]!=0){
       grille_joueur1_game[coup[0]][coup[1]]=1;
       printf("Le joueur 1 a touché l'adversaire\n");
+      write_client_msg(cli_sockfd[1], "HBT");
     }
     else{
       grille_joueur1_game[coup[0]][coup[1]]=2;
       printf("Le joueur 1 n'a pas touché l'adversaire\n");
+      write_client_msg(cli_sockfd[1], "HNT");
     }
     write_client_data(sockfd,grille_joueur1_game);
   }else{
     if(grille_joueur1_placement[coup[0]][coup[1]]!=0){
       grille_joueur2_game[coup[0]][coup[1]]=1;
-      printf("Le joueur 2 a touché l'adversaire\n");
+      printf("Le joueur  2 a touché l'adversaire\n");
+      write_client_msg(cli_sockfd[0], "HBT");
     }
     else{
       grille_joueur2_game[coup[0]][coup[1]]=2;
       printf("Le joueur 2 n'a pas touché l'adversaire\n");
+      write_client_msg(cli_sockfd[0], "HNT");
     }
     write_client_data(sockfd,grille_joueur2_game);
   }
-
+  return is_Game_Over();
 }
 
 
-void play(int * cli_sockfd, int player,int data[2])
+int play(int * cli_sockfd, int player,int data[2])
 {
+  int value;
   int tmp[2];
     if(player == 1){
       write_client_msg(cli_sockfd[1], "TRN");
       write_client_msg(cli_sockfd[0], "NTR");
       recv_square(cli_sockfd[1],tmp);
-      get_update(cli_sockfd[1],2,tmp);
+      value = get_update(cli_sockfd, cli_sockfd[1], 2, tmp);
       memcpy(data, tmp, 2*sizeof(int));
     }else{
       write_client_msg(cli_sockfd[0], "TRN");
       write_client_msg(cli_sockfd[1], "NTR");
       recv_square(cli_sockfd[0],tmp);
-      get_update(cli_sockfd[0],1,tmp);
+      value = get_update(cli_sockfd, cli_sockfd[0], 1, tmp);
       memcpy(data, tmp, 2*sizeof(int));
     }
+    if(value==1){
+      write_client_msg(cli_sockfd[1], "WIN");
+      write_client_msg(cli_sockfd[0], "LOS");
+    }
+    else if(value==2){
+      write_client_msg(cli_sockfd[1], "LOS");
+      write_client_msg(cli_sockfd[0], "WIN");
+    }
+    return value;
 }
 
 int check_square(char * data){
@@ -347,14 +385,39 @@ void *run_game(void *thread_data)
     //printf("Case grille 1 : %i\n",grille_joueur1[0][0]);
     write_clients_msg(cli_sockfd, "STP");
     int gameOver=0;
-    while(gameOver==0){
-    int square[2];
+    while(gameOver!=1){
+      int square[2];
       printf("Au tour du joueur %i \n",turn+1);
-      play(cli_sockfd, prev_turn,square);
+      int value = play(cli_sockfd, prev_turn,square);
+      if(value==1){
+        printf("Le joueur 1 a gagné !\n");
+        gameOver=1;
+      }else if(value==2){
+        printf("Le joueur 2 a gagné !\n");
+        gameOver=1;
+      }
       prev_turn=turn;
       turn = (turn + 1) % 2;
-      gameOver=0;
     }
+    printf("\n Deconnexion des joueurs...\n");
+
+  close(cli_sockfd[0]);
+  close(cli_sockfd[1]);
+
+  pthread_mutex_lock(&mutexcount);
+  player_count--;
+  printf("Le nombre de joueurs actifs est désormais de %d.\n", player_count);
+  player_count--;
+  printf("Le nombre de joueurs actifs est désormais de %d.\n", player_count);
+  pthread_mutex_unlock(&mutexcount);
+
+
+    printf("\n La partie est terminée.\n");
+
+
+  free(cli_sockfd);
+
+  pthread_exit(NULL);
   }
 
 int main(int argc, char *argv[])
