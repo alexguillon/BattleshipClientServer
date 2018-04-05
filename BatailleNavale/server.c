@@ -297,11 +297,14 @@ void get_clients(int lis_sockfd, int * cli_sockfd)
 
 
 int get_update(int * cli_sockfd, int sockfd,int player,int coup[2]){
+  int value= is_Game_Over();
   if(player==1){
     if(grille_joueur2_placement[coup[0]][coup[1]]!=0){
       grille_joueur1_game[coup[0]][coup[1]]=1;
       printf("Le joueur 1 a touché l'adversaire\n");
       write_client_msg(cli_sockfd[1], "HBT");
+      if(value==0)
+        value = 3;
     }
     else{
       grille_joueur1_game[coup[0]][coup[1]]=2;
@@ -314,6 +317,8 @@ int get_update(int * cli_sockfd, int sockfd,int player,int coup[2]){
       grille_joueur2_game[coup[0]][coup[1]]=1;
       printf("Le joueur  2 a touché l'adversaire\n");
       write_client_msg(cli_sockfd[0], "HBT");
+      if(value==0)
+        value = 4;
     }
     else{
       grille_joueur2_game[coup[0]][coup[1]]=2;
@@ -322,14 +327,15 @@ int get_update(int * cli_sockfd, int sockfd,int player,int coup[2]){
     }
     write_client_data(sockfd,grille_joueur2_game);
   }
-  return is_Game_Over();
+  return value;
 }
 
 
 int play(int * cli_sockfd, int player,int data[2])
 {
-  int value;
+  int value=5;
   int tmp[2];
+  while(value==5 || value==4 || value==3){
     if(player == 1){
       write_client_msg(cli_sockfd[1], "TRN");
       write_client_msg(cli_sockfd[0], "NTR");
@@ -351,6 +357,8 @@ int play(int * cli_sockfd, int player,int data[2])
       write_client_msg(cli_sockfd[1], "LOS");
       write_client_msg(cli_sockfd[0], "WIN");
     }
+    printf("value : %i\n",value);
+  }
     return value;
 }
 

@@ -34,10 +34,6 @@ void recv_grid(int src[10][10], int sockfd)
 {
 	int msg[10][10];
 	int n = read(sockfd, msg, 100 * sizeof(int));
-	/*for(int i=0;i<10;i++){
-	for(int j=0;j<10;j++)
-	printf("(%i, %i) = %i \n",i,j,msg[i][j]);
-	}*/
 	memcpy(src, msg, 100 * sizeof(int));
 }
 
@@ -527,7 +523,7 @@ int main(int argc, char *argv[])
               printf("\n Votre adversaire est en train de jouer. \n");
           }
           else if (!strcmp(msg, "HBT")) { /* Move was invalid. Note that a "TRN" message will always follow an "INV" message, so we will end up at the above case in the next iteration. */
-             printf("\033[41mVotre adversaire a touché votre flotte ! Reprenez vous moussaillon !\033[0m \n");
+             printf("\033[41mVotre adversaire a touché votre flotte ! Reprenez vous moussaillon !\033[0m\n");
           }
           else if (!strcmp(msg, "HNT")) { /* Move was invalid. Note that a "TRN" message will always follow an "INV" message, so we will end up at the above case in the next iteration. */
              printf("\033[42mVotre adversaire a loupé sa cible ! Restons concentré !\033[0m \n");
